@@ -309,6 +309,7 @@ class SubscriptionBuilder
             'stripe_status' => $stripeSubscription->status,
             'stripe_price' => $isSinglePrice ? $firstItem->price->id : null,
             'quantity' => $isSinglePrice ? ($firstItem->quantity ?? null) : null,
+            'renews_at' => Carbon::createFromTimestamp($stripeSubscription->current_period_end),
             'trial_ends_at' => ! $this->skipTrial ? $this->trialExpires : null,
             'ends_at' => null,
         ]);

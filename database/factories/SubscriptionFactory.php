@@ -35,6 +35,7 @@ class SubscriptionFactory extends Factory
             'stripe_status' => StripeSubscription::STATUS_ACTIVE,
             'stripe_price' => null,
             'quantity' => null,
+            'renews_at' => null,
             'trial_ends_at' => null,
             'ends_at' => null,
         ];
