@@ -52,6 +52,7 @@ class Subscription extends Model
     protected $casts = [
         'ends_at' => 'datetime',
         'quantity' => 'integer',
+        'renews_at' => 'datetime',
         'trial_ends_at' => 'datetime',
     ];
 
@@ -705,6 +706,7 @@ class Subscription extends Model
             'stripe_status' => $stripeSubscription->status,
             'stripe_price' => $isSinglePrice ? $firstItem->price->id : null,
             'quantity' => $isSinglePrice ? ($firstItem->quantity ?? null) : null,
+            'renews_at' => Carbon::createFromTimestamp($stripeSubscription->current_period_end),
             'ends_at' => null,
         ])->save();
 
@@ -992,6 +994,8 @@ class Subscription extends Model
 
         $this->stripe_status = $stripeSubscription->status;
 
+        $this->renews_at = null;
+
         // If the user was on trial, we will set the grace period to end when the trial
         // would have ended. Otherwise, we'll retrieve the end of the billing period
         // period and make that the end of the grace period for this current user.
@@ -1026,6 +1030,8 @@ class Subscription extends Model
         ]);
 
         $this->stripe_status = $stripeSubscription->status;
+
+        $this->renews_at = null;
 
         $this->ends_at = Carbon::createFromTimestamp($stripeSubscription->cancel_at);
 
@@ -1078,6 +1084,7 @@ class Subscription extends Model
     {
         $this->fill([
             'stripe_status' => StripeSubscription::STATUS_CANCELED,
+            'renews_at' => null,
             'ends_at' => Carbon::now(),
         ])->save();
     }
@@ -1105,6 +1112,7 @@ class Subscription extends Model
         // no longer "canceled". Then we shall save this record in the database.
         $this->fill([
             'stripe_status' => $stripeSubscription->status,
+            'renews_at' => Carbon::createFromTimestamp($stripeSubscription->current_period_end),
             'ends_at' => null,
         ])->save();
 
