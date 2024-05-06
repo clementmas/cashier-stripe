@@ -50,10 +50,10 @@ class Subscription extends Model
      * @var array
      */
     protected $casts = [
+        'ends_at' => 'datetime',
         'quantity' => 'integer',
         'renews_at' => 'datetime',
         'trial_ends_at' => 'datetime',
-        'ends_at' => 'datetime',
     ];
 
     /**
