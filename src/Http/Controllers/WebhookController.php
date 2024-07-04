@@ -165,10 +165,12 @@ class WebhookController extends Controller
 
             // Cancellation date...
             if ($data['cancel_at_period_end'] ?? false) {
+                $subscription->renews_at = null;
                 $subscription->ends_at = $subscription->onTrial()
                     ? $subscription->trial_ends_at
                     : Carbon::createFromTimestamp($data['current_period_end']);
             } elseif (isset($data['cancel_at']) || isset($data['canceled_at'])) {
+                $subscription->renews_at = null;
                 $subscription->ends_at = Carbon::createFromTimestamp($data['cancel_at'] ?? $data['canceled_at']);
             } else {
                 $subscription->ends_at = null;
@@ -273,6 +275,34 @@ class WebhookController extends Controller
     {
         if ($user = $this->getUserByStripeId($payload['data']['object']['customer'])) {
             $user->updateDefaultPaymentMethodFromStripe();
+        }
+
+        return $this->successMethod();
+    }
+
+    /**
+     * Handle invoice payment succeeded
+     *
+     * @param  array  $payload
+     * @return \Symfony\Component\HttpFoundation\Response
+     */
+    protected function handleInvoicePaymentSucceeded(array $payload)
+    {
+        $user = $this->getUserByStripeId($payload['data']['object']['customer']);
+
+        $subscriptionId = $payload['data']['object']['subscription'];
+
+        if ($user && $subscriptionId) {
+            $subscription = $user->subscriptions()->where('stripe_id', $subscriptionId)->first();
+
+            // Update the renewal date on every billing cycle's successful payment
+            // note: swapping subscriptions also triggers this webhook
+            if ($subscription && !$subscription->canceled()) {
+                $stripeSubscription = Cashier::stripe()->subscriptions->retrieve($subscriptionId);
+
+                $subscription->renews_at = Carbon::createFromTimestamp($stripeSubscription['current_period_end']);
+                $subscription->save();
+            }
         }
 
         return $this->successMethod();

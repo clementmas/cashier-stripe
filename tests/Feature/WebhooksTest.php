@@ -278,6 +278,31 @@ class WebhooksTest extends FeatureTestCase
         $this->assertEmpty($user->refresh()->subscriptions, 'Subscription was not deleted.');
     }
 
+    public function test_subscriptions_renewal_dates_are_updated()
+    {
+        $user = $this->createCustomer('subscriptions_renewal_dates_are_updated');
+        $subscription = $user->newSubscription('main', static::$priceId)->create('pm_card_visa');
+
+        // Pretend the subscription is renewed today
+        $subscription->update(['renews_at' => Carbon::now()]);
+
+        $this->postJson('stripe/webhook', [
+            'id' => 'foo',
+            'type' => 'invoice.payment_succeeded',
+            'data' => [
+                'object' => [
+                    'id' => 'foo',
+                    'customer' => $user->stripe_id,
+                    'subscription' => $subscription->stripe_id,
+                    'status' => 'active',
+                    'cancel_at_period_end' => false,
+                ],
+            ],
+        ])->assertOk();
+        
+        $this->assertSame(Carbon::now()->addMonth()->format('Y-m-d'), $subscription->fresh()->renews_at->format('Y-m-d'));
+    }
+
     public function test_payment_action_required_email_is_sent()
     {
         $user = $this->createCustomer('payment_action_required_email_is_sent');

@@ -132,6 +132,7 @@ class SubscriptionsTest extends FeatureTestCase
         $this->assertFalse($user->subscription('main')->onGracePeriod());
         $this->assertTrue($user->subscription('main')->recurring());
         $this->assertFalse($user->subscription('main')->ended());
+        $this->assertSame(Carbon::today()->addMonth()->toDateString(), $user->subscription('main')->renews_at->toDateString());
 
         // Cancel Subscription
         $subscription = $user->subscription('main');
@@ -142,6 +143,7 @@ class SubscriptionsTest extends FeatureTestCase
         $this->assertTrue($subscription->onGracePeriod());
         $this->assertFalse($subscription->recurring());
         $this->assertFalse($subscription->ended());
+        $this->assertNull($subscription->renews_at);
 
         // Modify Ends Date To Past
         $oldGracePeriod = $subscription->ends_at;
@@ -163,6 +165,7 @@ class SubscriptionsTest extends FeatureTestCase
         $this->assertFalse($subscription->onGracePeriod());
         $this->assertTrue($subscription->recurring());
         $this->assertFalse($subscription->ended());
+        $this->assertSame(Carbon::today()->addMonth()->toDateString(), $user->subscription('main')->renews_at->toDateString());
 
         // Increment & Decrement
         $subscription->incrementQuantity();
@@ -247,6 +250,29 @@ class SubscriptionsTest extends FeatureTestCase
 
         $this->assertEquals(1100, $subscription->asStripeSubscription()->items->data[0]->price->unit_amount);
         $this->assertEquals('exclusive', $subscription->asStripeSubscription()->items->data[0]->price->tax_behavior);
+    }
+
+    public function test_swapping_subscription_and_updating_renewal_date()
+    {
+        $user = $this->createCustomer('swapping_subscription_and_updating_renewal_date');
+        $user->newSubscription('main', static::$priceId)->create('pm_card_visa');
+        $subscription = $user->subscription('main');
+
+        $this->assertSame(Carbon::today()->addMonth()->toDateString(), $subscription->renews_at->toDateString());
+
+        $subscription->swap([[
+            'price_data' => [
+                'product' => static::$productId,
+                'tax_behavior' => 'exclusive',
+                'currency' => 'USD',
+                'recurring' => [
+                    'interval' => 'year',
+                ],
+                'unit_amount' => 1100,
+            ],
+        ]]);
+
+        $this->assertSame(Carbon::today()->addYear()->toDateString(), $subscription->renews_at->toDateString());
     }
 
     public function test_declined_card_during_new_quantity()
@@ -936,6 +962,7 @@ class SubscriptionsTest extends FeatureTestCase
         $subscription = $subscription->cancelAt($endsAt = now()->addMonths(3));
 
         $this->assertTrue($subscription->active());
+        $this->assertNull($subscription->renews_at);
         $this->assertSame($endsAt->timestamp, $subscription->ends_at->timestamp);
         $this->assertSame($endsAt->timestamp, $subscription->asStripeSubscription()->cancel_at);
     }
