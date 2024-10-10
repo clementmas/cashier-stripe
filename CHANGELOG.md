@@ -1,6 +1,24 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/cashier/compare/v15.3.2...15.x)
+## [Unreleased](https://github.com/laravel/cashier/compare/v15.4.3...15.x)
+
+## [v15.4.3](https://github.com/laravel/cashier/compare/v15.4.2...v15.4.3) - 2024-09-03
+
+* [15.x] Prevent mass assignment issue by [@driesvints](https://github.com/driesvints) in https://github.com/laravel/cashier-stripe/pull/1713
+
+## [v15.4.2](https://github.com/laravel/cashier/compare/v15.4.1...v15.4.2) - 2024-08-20
+
+* Add missing docblocks by [@u01jmg3](https://github.com/u01jmg3) in https://github.com/laravel/cashier-stripe/pull/1694
+* Fixes SQLite migration rollback by [@crynobone](https://github.com/crynobone) in https://github.com/laravel/cashier-stripe/pull/1703
+* [15.x] Catch missing payment intents by [@shatterproof](https://github.com/shatterproof) in https://github.com/laravel/cashier-stripe/pull/1704
+
+## [v15.4.1](https://github.com/laravel/cashier/compare/v15.4.0...v15.4.1) - 2024-07-09
+
+* [15.x] Remove limitation from checkoutCharge by [@driesvints](https://github.com/driesvints) in https://github.com/laravel/cashier-stripe/pull/1690
+
+## [v15.4.0](https://github.com/laravel/cashier/compare/v15.3.2...v15.4.0) - 2024-07-02
+
+* [15.x] Indicate if invoice is paid by [@driesvints](https://github.com/driesvints) in https://github.com/laravel/cashier-stripe/pull/1686
 
 ## [v15.3.2](https://github.com/laravel/cashier/compare/v15.3.1...v15.3.2) - 2024-04-12
 
