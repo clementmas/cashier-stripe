@@ -49,6 +49,7 @@ class WebhooksTest extends FeatureTestCase
     public function test_subscriptions_are_created()
     {
         $user = $this->createCustomer('subscriptions_are_created', ['stripe_id' => 'cus_foo']);
+        $renewalDate = Carbon::now()->addMonth();
 
         $this->postJson('stripe/webhook', [
             'id' => 'foo',
@@ -57,6 +58,7 @@ class WebhooksTest extends FeatureTestCase
                 'object' => [
                     'id' => 'sub_foo',
                     'customer' => 'cus_foo',
+                    'current_period_end' => $renewalDate->timestamp,
                     'cancel_at_period_end' => false,
                     'quantity' => 10,
                     'items' => [
@@ -77,6 +79,7 @@ class WebhooksTest extends FeatureTestCase
             'stripe_id' => 'sub_foo',
             'stripe_status' => 'active',
             'quantity' => 10,
+            'renews_at' => $renewalDate->format('Y-m-d H:i:s'),
         ]);
 
         $this->assertDatabaseHas('subscription_items', [
@@ -90,6 +93,7 @@ class WebhooksTest extends FeatureTestCase
     public function test_subscriptions_are_updated()
     {
         $user = $this->createCustomer('subscriptions_are_updated', ['stripe_id' => 'cus_foo']);
+        $renewalDate = Carbon::now()->addMonth();
 
         $subscription = $user->subscriptions()->create([
             'type' => 'main',
@@ -112,6 +116,7 @@ class WebhooksTest extends FeatureTestCase
                 'object' => [
                     'id' => $subscription->stripe_id,
                     'customer' => 'cus_foo',
+                    'current_period_end' => $renewalDate->timestamp,
                     'cancel_at_period_end' => false,
                     'items' => [
                         'data' => [[
@@ -129,6 +134,7 @@ class WebhooksTest extends FeatureTestCase
             'user_id' => $user->id,
             'stripe_id' => 'sub_foo',
             'quantity' => 5,
+            'renews_at' => $renewalDate->format('Y-m-d H:i:s'),
         ]);
 
         $this->assertDatabaseHas('subscription_items', [
@@ -147,6 +153,7 @@ class WebhooksTest extends FeatureTestCase
     public function test_subscriptions_on_update_cancel_at_date_is_correct()
     {
         $user = $this->createCustomer('subscriptions_on_update_cancel_at_date_is_correct', ['stripe_id' => 'cus_foo']);
+        $renewalDate = Carbon::now()->addMonth();
         $cancelDate = Carbon::now()->addMonths(6);
 
         $subscription = $user->subscriptions()->create([
@@ -170,6 +177,7 @@ class WebhooksTest extends FeatureTestCase
                 'object' => [
                     'id' => $subscription->stripe_id,
                     'customer' => 'cus_foo',
+                    'current_period_end' => $renewalDate->timestamp,
                     'cancel_at' => $cancelDate->timestamp,
                     'cancel_at_period_end' => false,
                     'items' => [
@@ -188,6 +196,69 @@ class WebhooksTest extends FeatureTestCase
             'user_id' => $user->id,
             'stripe_id' => 'sub_foo',
             'quantity' => 5,
+            'renews_at' => null,
+            'ends_at' => $cancelDate->format('Y-m-d H:i:s'),
+        ]);
+
+        $this->assertDatabaseHas('subscription_items', [
+            'subscription_id' => $subscription->id,
+            'stripe_id' => 'bar',
+            'stripe_product' => 'prod_bar',
+            'stripe_price' => 'price_foo',
+            'quantity' => 5,
+        ]);
+
+        $this->assertDatabaseMissing('subscription_items', [
+            'id' => $item->id,
+        ]);
+    }
+
+    public function test_subscriptions_on_update_cancel_at_period_end_date_is_correct()
+    {
+        $user = $this->createCustomer('subscriptions_on_update_cancel_at_period_end_date_is_correct', ['stripe_id' => 'cus_foo']);
+        $cancelDate = Carbon::now()->addMonths(6);
+
+        $subscription = $user->subscriptions()->create([
+            'type' => 'main',
+            'stripe_id' => 'sub_foo',
+            'stripe_price' => 'price_foo',
+            'stripe_status' => StripeSubscription::STATUS_ACTIVE,
+        ]);
+
+        $item = $subscription->items()->create([
+            'stripe_id' => 'it_'.Str::random(10),
+            'stripe_product' => 'prod_bar',
+            'stripe_price' => 'price_bar',
+            'quantity' => 1,
+        ]);
+
+        $this->postJson('stripe/webhook', [
+            'id' => 'foo',
+            'type' => 'customer.subscription.updated',
+            'data' => [
+                'object' => [
+                    'id' => $subscription->stripe_id,
+                    'customer' => 'cus_foo',
+                    'current_period_end' => $cancelDate->timestamp,
+                    'cancel_at' => $cancelDate->timestamp,
+                    'cancel_at_period_end' => true,
+                    'items' => [
+                        'data' => [[
+                            'id' => 'bar',
+                            'price' => ['id' => 'price_foo', 'product' => 'prod_bar'],
+                            'quantity' => 5,
+                        ]],
+                    ],
+                ],
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('subscriptions', [
+            'id' => $subscription->id,
+            'user_id' => $user->id,
+            'stripe_id' => 'sub_foo',
+            'quantity' => 5,
+            'renews_at' => null,
             'ends_at' => $cancelDate->format('Y-m-d H:i:s'),
         ]);
 
@@ -218,6 +289,7 @@ class WebhooksTest extends FeatureTestCase
                 'object' => [
                     'id' => $subscription->stripe_id,
                     'customer' => $user->stripe_id,
+                    'current_period_end' => Carbon::now()->addMonth()->timestamp,
                     'cancel_at_period_end' => false,
                     'items' => [
                         'data' => [[

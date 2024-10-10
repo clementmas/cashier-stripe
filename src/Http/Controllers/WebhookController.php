@@ -86,6 +86,7 @@ class WebhookController extends Controller
                     'stripe_status' => $data['status'],
                     'stripe_price' => $isSinglePrice ? $firstItem['price']['id'] : null,
                     'quantity' => $isSinglePrice && isset($firstItem['quantity']) ? $firstItem['quantity'] : null,
+                    'renews_at' => Carbon::createFromTimestamp($data['current_period_end']),
                     'trial_ends_at' => $trialEndsAt,
                     'ends_at' => null,
                 ]);
@@ -164,16 +165,21 @@ class WebhookController extends Controller
                 }
             }
 
+            // Period ends at
+            $currentPeriodEndsAt = Carbon::createFromTimestamp($data['current_period_end']);
+
             // Cancellation date...
             if ($data['cancel_at_period_end'] ?? false) {
                 $subscription->renews_at = null;
                 $subscription->ends_at = $subscription->onTrial()
                     ? $subscription->trial_ends_at
-                    : Carbon::createFromTimestamp($data['current_period_end']);
+                    : $currentPeriodEndsAt;
             } elseif (isset($data['cancel_at']) || isset($data['canceled_at'])) {
                 $subscription->renews_at = null;
                 $subscription->ends_at = Carbon::createFromTimestamp($data['cancel_at'] ?? $data['canceled_at']);
             } else {
+                // Renewal date...
+                $subscription->renews_at = $currentPeriodEndsAt;
                 $subscription->ends_at = null;
             }
 
